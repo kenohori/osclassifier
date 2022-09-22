@@ -53,20 +53,61 @@ int main(int argc, const char * argv[]) {
   std::cout << "\tType: " << inputDataset->GetDriverName() << std::endl;
   std::cout << "\tLayers: " << inputDataset->GetLayerCount() << std::endl;
   
-  for (auto &&layer: inputDataset->GetLayers()) {
-    std::cout << "Reading layer " << layer->GetName() << " (" << layer->GetFeatureCount(true) << " features)..." << std::endl;
-    if (strcmp(layer->GetName(), "osmm_topo_topographicarea") != 0) {
+  for (auto &&inputLayer: inputDataset->GetLayers()) {
+    std::cout << "Reading layer " << inputLayer->GetName() << " (" << inputLayer->GetFeatureCount(true) << " features)..." << std::endl;
+    if (strcmp(inputLayer->GetName(), "osmm_topo_topographicarea") != 0) {
       std::cout << "\t->skipped" << std::endl;
       continue;
     }
     
-    layer->ResetReading();
+    inputLayer->ResetReading();
     OGRSpatialReference* spatialReference = NULL;
-    if (layer->GetSpatialRef() != NULL) {
-      spatialReference = layer->GetSpatialRef()->Clone();
-    } OGRFeatureDefn *layerDefinition = layer->GetLayerDefn();
+    if (inputLayer->GetSpatialRef() != NULL) {
+      spatialReference = inputLayer->GetSpatialRef()->Clone();
+    }
     
+    OGRLayer *outputLayer = outputDataset->CreateLayer(inputLayer->GetName(), spatialReference, wkbPolygon, NULL);
+    if (outputLayer == NULL) {
+      std::cerr << "Error: Could not create output layer." << std::endl;
+      return 1;
+    }
+    
+    OGRFeatureDefn *layerDefinition = inputLayer->GetLayerDefn();
+    for (int currentField = 0; currentField < layerDefinition->GetFieldCount(); currentField++) {
+      if (outputLayer->CreateField(layerDefinition->GetFieldDefn(currentField)) != OGRERR_NONE) {
+        std::cerr << "Error: Could not create field " << layerDefinition->GetFieldDefn(currentField)->GetNameRef() << "." << std::endl;
+        return 1;
+      }
+    } OGRFieldDefn citygmlClassField("citygmlclass", OFTString);
+    citygmlClassField.SetWidth(25);
+    if (outputLayer->CreateField(&citygmlClassField) != OGRERR_NONE) {
+      std::cout << "\tError: Could not create field citygmlclass." << std::endl;
+      return 1;
+    }
+    
+    OGRFeature *inputFeature;
+    while ((inputFeature = inputLayer->GetNextFeature()) != NULL) {
+      if (!inputFeature->GetGeometryRef()) continue;
+      if (inputFeature->GetGeometryRef()->getGeometryType() == wkbPolygon ||
+          inputFeature->GetGeometryRef()->getGeometryType() == wkbPolygon25D) {
+        OGRFeature *outputFeature = OGRFeature::CreateFeature(outputLayer->GetLayerDefn());
+        for (int currentField = 0; currentField < inputFeature->GetFieldCount(); currentField++) {
+          outputFeature->SetField(currentField, inputFeature->GetRawFieldRef(currentField));
+        }
+        
+        outputFeature->SetField("citygmlclass", "test");
+        
+        outputFeature->SetGeometry(inputFeature->GetGeometryRef());
+        if (outputLayer->CreateFeature(outputFeature) != OGRERR_NONE) {
+          std::cerr << "\tError: Could not create feature." << std::endl;
+          return 1;
+        } OGRFeature::DestroyFeature(outputFeature);
+      }
+    }
   }
+  
+  GDALClose(inputDataset);
+  GDALClose(outputDataset);
   
   return 0;
 }

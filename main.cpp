@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <set>
 
 #include <ogrsf_frmts.h>
 
@@ -81,11 +82,12 @@ int main(int argc, const char * argv[]) {
     } OGRFieldDefn citygmlClassField("citygmlclass", OFTString);
     citygmlClassField.SetWidth(25);
     if (outputLayer->CreateField(&citygmlClassField) != OGRERR_NONE) {
-      std::cout << "\tError: Could not create field citygmlclass." << std::endl;
+      std::cout << "Error: Could not create field citygmlclass." << std::endl;
       return 1;
     }
     
     OGRFeature *inputFeature;
+    std::set<std::string> unclassifiedDescriptiveGroups;
     while ((inputFeature = inputLayer->GetNextFeature()) != NULL) {
       if (!inputFeature->GetGeometryRef()) continue;
       if (inputFeature->GetGeometryRef()->getGeometryType() == wkbPolygon ||
@@ -95,14 +97,59 @@ int main(int argc, const char * argv[]) {
           outputFeature->SetField(currentField, inputFeature->GetRawFieldRef(currentField));
         }
         
-        outputFeature->SetField("citygmlclass", "test");
+        int descriptiveGroupField = inputFeature->GetFieldIndex("descriptivegroup");
+        int makeField = inputFeature->GetFieldIndex("make");
+        
+        std::string descriptiveGroup = inputFeature->GetFieldAsString(descriptiveGroupField);
+        std::string make = inputFeature->GetFieldAsString(makeField);
+        
+        if (descriptiveGroup == "{Building}") outputFeature->SetField("citygmlclass", "Building");
+        else if (descriptiveGroup == "{\"Inland Water\",Structure}") outputFeature->SetField("citygmlclass", "Building");
+        else if (descriptiveGroup == "{Structure}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Building");
+        
+        else if (descriptiveGroup == "{Rail}") outputFeature->SetField("citygmlclass", "Railway");
+        
+        else if (descriptiveGroup == "{\"Road Or Track\"}") outputFeature->SetField("citygmlclass", "Road");
+        else if (descriptiveGroup == "{Path}") outputFeature->SetField("citygmlclass", "Road");
+        else if (descriptiveGroup == "{Roadside}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Road");
+        
+        else if (descriptiveGroup == "{\"Inland Water\"}") outputFeature->SetField("citygmlclass", "WaterBody");
+        
+        else if (descriptiveGroup == "{\"Natural Environment\"}" && make == "Natural") outputFeature->SetField("citygmlclass", "PlantCover");
+        else if (descriptiveGroup == "{\"Natural Environment\",Rail}") outputFeature->SetField("citygmlclass", "PlantCover");
+        else if (descriptiveGroup == "{\"Natural Environment\",Roadside}") outputFeature->SetField("citygmlclass", "PlantCover");
+        else if (descriptiveGroup == "{Roadside}" && make == "Natural") outputFeature->SetField("citygmlclass", "PlantCover");
+        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Natural") outputFeature->SetField("citygmlclass", "PlantCover");
+        else if (descriptiveGroup == "{Landform}") outputFeature->SetField("citygmlclass", "PlantCover");
+        else if (descriptiveGroup == "{Landform,Rail}") outputFeature->SetField("citygmlclass", "PlantCover");
+        
+        else if (descriptiveGroup == "{\"Road Or Track\",Structure}") outputFeature->SetField("citygmlclass", "Bridge");
+        else if (descriptiveGroup == "{Roadside,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
+        else if (descriptiveGroup == "{Path,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
+        else if (descriptiveGroup == "{Rail,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
+        else if (descriptiveGroup == "{\"General Surface\",Structure}") outputFeature->SetField("citygmlclass", "Bridge");
+        
+        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Manmade") outputFeature->SetField("citygmlclass", "LandUse");
+        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Multiple") outputFeature->SetField("citygmlclass", "LandUse");
+        else if (descriptiveGroup == "{Roadside}" && make == "Unknown") outputFeature->SetField("citygmlclass", "LandUse");
+        else if (descriptiveGroup == "Unclassified") outputFeature->SetField("citygmlclass", "LandUse");
+        
+        else {
+          unclassifiedDescriptiveGroups.insert(inputFeature->GetFieldAsString(descriptiveGroupField));
+          outputFeature->SetField("citygmlclass", "");
+        }
         
         outputFeature->SetGeometry(inputFeature->GetGeometryRef());
         if (outputLayer->CreateFeature(outputFeature) != OGRERR_NONE) {
-          std::cerr << "\tError: Could not create feature." << std::endl;
+          std::cerr << "Error: Could not create feature." << std::endl;
           return 1;
         } OGRFeature::DestroyFeature(outputFeature);
       }
+    }
+    
+    std::cout << "Unclassifiedescriptive groups:" << std::endl;
+    for (auto const &descriptiveGroup: unclassifiedDescriptiveGroups) {
+      std::cout << "\t" << descriptiveGroup << std::endl;
     }
   }
   

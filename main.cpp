@@ -106,17 +106,15 @@ int main(int argc, const char * argv[]) {
         std::string descriptiveTerm = inputFeature->GetFieldAsString(descriptiveTermField);
         std::string make = inputFeature->GetFieldAsString(makeField);
         
+        // Straightforward mappings
         if (descriptiveGroup == "{Building}") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveGroup == "{Structure}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Building");
         else if (descriptiveTerm == "{Weir}") outputFeature->SetField("citygmlclass", "Building");
 
         else if (descriptiveGroup == "{Rail}") outputFeature->SetField("citygmlclass", "Railway");
+        else if (descriptiveTerm == "{\"Level Crossing\"}") outputFeature->SetField("citygmlclass", "Railway");
 
         else if (descriptiveGroup == "{\"Road Or Track\"}") outputFeature->SetField("citygmlclass", "Road");
         else if (descriptiveGroup == "{Path}") outputFeature->SetField("citygmlclass", "Road"); // for pedestrians
-        else if (descriptiveGroup == "{Roadside}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Road"); // pavement
-        else if (descriptiveGroup == "{Roadside}" && make == "Unknown") outputFeature->SetField("citygmlclass", "Road"); // pedestrian islands
-        else if (descriptiveGroup == "{Roadside,Structure}") outputFeature->SetField("citygmlclass", "Road"); // protection for pedestrian crossings
 
         else if (descriptiveGroup == "{\"Inland Water\"}") outputFeature->SetField("citygmlclass", "WaterBody");
 
@@ -130,19 +128,23 @@ int main(int argc, const char * argv[]) {
 
         else if (descriptiveTerm == "{Bridge}") outputFeature->SetField("citygmlclass", "Bridge");
         else if (descriptiveTerm == "{Footbridge}") outputFeature->SetField("citygmlclass", "Bridge");
-//        else if (descriptiveGroup == "{\"Road Or Track\",Structure}") outputFeature->SetField("citygmlclass", "Bridge");
-//        else if (descriptiveGroup == "{Roadside,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
-//        else if (descriptiveGroup == "{Path,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
-//        else if (descriptiveGroup == "{Rail,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
-//        else if (descriptiveGroup == "{\"General Surface\",Structure}") outputFeature->SetField("citygmlclass", "Bridge");
-
+        else if (descriptiveTerm == "{\"Rail Signal Gantry\"}") outputFeature->SetField("citygmlclass", "Bridge");
+        
+        // Catch other cases
+        else if (descriptiveGroup == "{Structure}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Building");
+        else if (descriptiveGroup == "{\"General Surface\",Structure}") outputFeature->SetField("citygmlclass", "LandUse");
+        
+        else if (descriptiveGroup == "{Roadside}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Road"); // pavement
+        else if (descriptiveGroup == "{Path,Roadside}") outputFeature->SetField("citygmlclass", "Road"); // for pedestrians
+        else if (descriptiveGroup == "{Roadside}" && make == "Unknown") outputFeature->SetField("citygmlclass", "Road"); // pedestrian islands
+        else if (descriptiveGroup == "{Roadside,Structure}") outputFeature->SetField("citygmlclass", "Road"); // protection for pedestrian crossings
+        
         else if (descriptiveTerm == "{\"Multi Surface\"}") outputFeature->SetField("citygmlclass", "LandUse");
         else if (descriptiveTerm == "{Slope}") outputFeature->SetField("citygmlclass", "LandUse");
         else if (descriptiveGroup == "{\"General Surface\"}" && make == "Manmade") outputFeature->SetField("citygmlclass", "LandUse");
-//        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Multiple") outputFeature->SetField("citygmlclass", "LandUse");
-//        else if (descriptiveGroup == "{Roadside}" && make == "Unknown") outputFeature->SetField("citygmlclass", "LandUse");
         else if (descriptiveGroup == "{Unclassified}") outputFeature->SetField("citygmlclass", "LandUse");
         
+        // Doesn't fit yet
         else {
           unclassifiedDescriptiveGroups.insert(inputFeature->GetFieldAsString(descriptiveGroupField));
           unclassifiedDescriptiveTerms.insert(inputFeature->GetFieldAsString(descriptiveTermField));

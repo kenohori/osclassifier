@@ -108,7 +108,9 @@ int main(int argc, const char * argv[]) {
         
         // Straightforward mappings
         if (descriptiveGroup == "{Building}") outputFeature->SetField("citygmlclass", "Building");
+        else if (descriptiveGroup == "{Building,Structure}") outputFeature->SetField("citygmlclass", "Building");
         else if (descriptiveTerm == "{Weir}") outputFeature->SetField("citygmlclass", "Building");
+        else if (descriptiveTerm == "{Cross}") outputFeature->SetField("citygmlclass", "Building");
 
         else if (descriptiveGroup == "{Rail}") outputFeature->SetField("citygmlclass", "Railway");
         else if (descriptiveTerm == "{\"Level Crossing\"}") outputFeature->SetField("citygmlclass", "Railway");
@@ -128,16 +130,20 @@ int main(int argc, const char * argv[]) {
 
         else if (descriptiveTerm == "{Bridge}") outputFeature->SetField("citygmlclass", "Bridge");
         else if (descriptiveTerm == "{Footbridge}") outputFeature->SetField("citygmlclass", "Bridge");
+        else if (descriptiveTerm == "{Footbridge,Step}") outputFeature->SetField("citygmlclass", "Bridge");
         else if (descriptiveTerm == "{\"Rail Signal Gantry\"}") outputFeature->SetField("citygmlclass", "Bridge");
+        else if (descriptiveTerm == "{Step}") outputFeature->SetField("citygmlclass", "Bridge");
         
         // Catch other cases
         else if (descriptiveGroup == "{Structure}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveGroup == "{\"General Surface\",Structure}") outputFeature->SetField("citygmlclass", "LandUse");
+        else if (descriptiveGroup == "{\"General Surface\",Structure}") outputFeature->SetField("citygmlclass", "Building");
         
         else if (descriptiveGroup == "{Roadside}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Road"); // pavement
         else if (descriptiveGroup == "{Path,Roadside}") outputFeature->SetField("citygmlclass", "Road"); // for pedestrians
         else if (descriptiveGroup == "{Roadside}" && make == "Unknown") outputFeature->SetField("citygmlclass", "Road"); // pedestrian islands
         else if (descriptiveGroup == "{Roadside,Structure}") outputFeature->SetField("citygmlclass", "Road"); // protection for pedestrian crossings
+        
+        else if (descriptiveGroup == "{Path,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
         
         else if (descriptiveTerm == "{\"Multi Surface\"}") outputFeature->SetField("citygmlclass", "LandUse");
         else if (descriptiveTerm == "{Slope}") outputFeature->SetField("citygmlclass", "LandUse");

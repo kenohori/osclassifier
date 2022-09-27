@@ -6,7 +6,7 @@
 
 int main(int argc, const char * argv[]) {
   
-  const char *inputFile = "/Users/ken/Downloads/vector_data/os_mastermap_topo_exeter_large_aoi.gpkg";
+  const char *inputFile = "/Users/ken/Downloads/vector_data/os_mastermap_topo_exeter_small_aoi.gpkg";
   const char *outputFile = "/Users/ken/Downloads/3dfier_os/osmm.gpkg";
 
   // Prepare input file
@@ -56,7 +56,8 @@ int main(int argc, const char * argv[]) {
   
   for (auto &&inputLayer: inputDataset->GetLayers()) {
     std::cout << "Reading layer " << inputLayer->GetName() << " (" << inputLayer->GetFeatureCount(true) << " features)..." << std::endl;
-    if (strcmp(inputLayer->GetName(), "osmm_topo_topographicarea") != 0) {
+    if (strcmp(inputLayer->GetName(), "osmm_topo_topographicarea") != 0 &&
+        strcmp(inputLayer->GetName(), "output") != 0) {
       std::cout << "\t->skipped" << std::endl;
       continue;
     }
@@ -90,13 +91,12 @@ int main(int argc, const char * argv[]) {
     std::set<std::string> unclassifiedDescriptiveGroups, unclassifiedDescriptiveTerms;
     unsigned long long unclassifiedFeatures = 0;
     while ((inputFeature = inputLayer->GetNextFeature()) != NULL) {
-      if (!inputFeature->GetGeometryRef()) continue;
+      if (!inputFeature->GetGeometryRef()) {
+        std::cout << "Skipped feature with no geometry." << std::endl;
+        continue;
+      }
       if (inputFeature->GetGeometryRef()->getGeometryType() == wkbPolygon ||
-          inputFeature->GetGeometryRef()->getGeometryType() == wkbPolygon25D) {
-        OGRFeature *outputFeature = OGRFeature::CreateFeature(outputLayer->GetLayerDefn());
-        for (int currentField = 0; currentField < inputFeature->GetFieldCount(); currentField++) {
-          outputFeature->SetField(currentField, inputFeature->GetRawFieldRef(currentField));
-        }
+          inputFeature->GetGeometryRef()->getGeometryType() == wkbMultiPolygon) {
         
         int descriptiveGroupField = inputFeature->GetFieldIndex("descriptivegroup");
         int descriptiveTermField = inputFeature->GetFieldIndex("descriptiveterm");
@@ -105,95 +105,121 @@ int main(int argc, const char * argv[]) {
         std::string descriptiveGroup = inputFeature->GetFieldAsString(descriptiveGroupField);
         std::string descriptiveTerm = inputFeature->GetFieldAsString(descriptiveTermField);
         std::string make = inputFeature->GetFieldAsString(makeField);
+        std::string citygmlClass;
         
         // Straightforward mappings
-        if (descriptiveGroup == "{Building}") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveGroup == "{Building,Structure}") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveGroup == "{Building,Rail}") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveGroup == "{Building,\"Road Or Track\"}") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveTerm == "{Weir}") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveTerm == "{Foreshore,Weir}") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveTerm == "{Cross}") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveGroup == "{Glasshouse}") outputFeature->SetField("citygmlclass", "Building");
+        if (descriptiveGroup == "{Building}") citygmlClass = "Building";
+        else if (descriptiveGroup == "{Building,Structure}") citygmlClass = "Building";
+        else if (descriptiveGroup == "{Building,Rail}") citygmlClass = "Building";
+        else if (descriptiveGroup == "{Building,\"Road Or Track\"}") citygmlClass = "Building";
+        else if (descriptiveTerm == "{Weir}") citygmlClass = "Building";
+        else if (descriptiveTerm == "{Foreshore,Weir}") citygmlClass = "Building";
+        else if (descriptiveTerm == "{Cross}") citygmlClass = "Building";
+        else if (descriptiveGroup == "{Glasshouse}") citygmlClass = "Building";
 
-        else if (descriptiveGroup == "{Rail}") outputFeature->SetField("citygmlclass", "Railway");
-        else if (descriptiveTerm == "{\"Level Crossing\"}") outputFeature->SetField("citygmlclass", "Railway");
+        else if (descriptiveGroup == "{Rail}") citygmlClass = "Railway";
+        else if (descriptiveTerm == "{\"Level Crossing\"}") citygmlClass = "Railway";
 
-        else if (descriptiveGroup == "{\"Road Or Track\"}") outputFeature->SetField("citygmlclass", "Road");
-        else if (descriptiveGroup == "{\"General Surface\",\"Road Or Track\"}") outputFeature->SetField("citygmlclass", "Road");
-        else if (descriptiveGroup == "{\"Road Or Track\",\"General Feature\"}") outputFeature->SetField("citygmlclass", "Road");
-        else if (descriptiveGroup == "{Path}") outputFeature->SetField("citygmlclass", "Road"); // for pedestrians
-        else if (descriptiveTerm == "{Track}") outputFeature->SetField("citygmlclass", "Road");
-        else if (descriptiveTerm == "{Foreshore,Step}") outputFeature->SetField("citygmlclass", "Road");
+        else if (descriptiveGroup == "{\"Road Or Track\"}") citygmlClass = "Road";
+        else if (descriptiveGroup == "{\"General Surface\",\"Road Or Track\"}") citygmlClass = "Road";
+        else if (descriptiveGroup == "{\"Road Or Track\",\"General Feature\"}") citygmlClass = "Road";
+        else if (descriptiveGroup == "{Path}") citygmlClass = "Road"; // for pedestrians
+        else if (descriptiveTerm == "{Track}") citygmlClass = "Road";
+        else if (descriptiveTerm == "{Foreshore,Step}") citygmlClass = "Road";
 
-        else if (descriptiveGroup == "{\"Inland Water\"}") outputFeature->SetField("citygmlclass", "WaterBody");
-        else if (descriptiveGroup == "{\"Inland Water\",Structure}") outputFeature->SetField("citygmlclass", "WaterBody");
-        else if (descriptiveGroup == "{\"Tidal Water\"}") outputFeature->SetField("citygmlclass", "WaterBody");
-        else if (descriptiveGroup == "{\"Natural Environment\",\"Tidal Water\"}") outputFeature->SetField("citygmlclass", "WaterBody");
-        else if (descriptiveGroup == "{\"Inland Water\",\"Natural Environment\"}") outputFeature->SetField("citygmlclass", "WaterBody");
-        else if (descriptiveGroup == "{\"Inland Water\",\"Natural Environment\"}") outputFeature->SetField("citygmlclass", "WaterBody");
-        else if (descriptiveGroup == "{\"General Surface\",\"Inland Water\"}") outputFeature->SetField("citygmlclass", "WaterBody");
-        else if (descriptiveGroup == "{Structure,\"Inland Water\"}") outputFeature->SetField("citygmlclass", "WaterBody");
-        else if (descriptiveGroup == "{\"Inland Water\",\"Road Or Track\"}") outputFeature->SetField("citygmlclass", "WaterBody");
+        else if (descriptiveGroup == "{\"Inland Water\"}") citygmlClass = "WaterBody";
+        else if (descriptiveGroup == "{\"Inland Water\",Structure}") citygmlClass = "WaterBody";
+        else if (descriptiveGroup == "{\"Tidal Water\"}") citygmlClass = "WaterBody";
+        else if (descriptiveGroup == "{\"Natural Environment\",\"Tidal Water\"}") citygmlClass = "WaterBody";
+        else if (descriptiveGroup == "{\"Inland Water\",\"Natural Environment\"}") citygmlClass = "WaterBody";
+        else if (descriptiveGroup == "{\"Inland Water\",\"Natural Environment\"}") citygmlClass = "WaterBody";
+        else if (descriptiveGroup == "{\"General Surface\",\"Inland Water\"}") citygmlClass = "WaterBody";
+        else if (descriptiveGroup == "{Structure,\"Inland Water\"}") citygmlClass = "WaterBody";
+        else if (descriptiveGroup == "{\"Inland Water\",\"Road Or Track\"}") citygmlClass = "WaterBody";
 
-        else if (descriptiveGroup == "{\"Natural Environment\"}") outputFeature->SetField("citygmlclass", "PlantCover");
-        else if (descriptiveGroup == "{\"Natural Environment\",Rail}") outputFeature->SetField("citygmlclass", "PlantCover");
-        else if (descriptiveGroup == "{\"Natural Environment\",Roadside}") outputFeature->SetField("citygmlclass", "PlantCover");
-        else if (descriptiveGroup == "{Landform}") outputFeature->SetField("citygmlclass", "PlantCover");
-        else if (descriptiveGroup == "{Landform,Rail}") outputFeature->SetField("citygmlclass", "PlantCover");
-        else if (descriptiveGroup == "{\"Historical Interest\",Rail}") outputFeature->SetField("citygmlclass", "PlantCover");
+        else if (descriptiveGroup == "{\"Natural Environment\"}") citygmlClass = "PlantCover";
+        else if (descriptiveGroup == "{\"Natural Environment\",Rail}") citygmlClass = "PlantCover";
+        else if (descriptiveGroup == "{\"Natural Environment\",Roadside}") citygmlClass = "PlantCover";
+        else if (descriptiveGroup == "{Landform}") citygmlClass = "PlantCover";
+        else if (descriptiveGroup == "{Landform,Rail}") citygmlClass = "PlantCover";
+        else if (descriptiveGroup == "{\"Historical Interest\",Rail}") citygmlClass = "PlantCover";
 
-        else if (descriptiveTerm == "{Bridge}") outputFeature->SetField("citygmlclass", "Bridge");
-        else if (descriptiveTerm == "{Footbridge}") outputFeature->SetField("citygmlclass", "Bridge");
-        else if (descriptiveTerm == "{Footbridge,Step}") outputFeature->SetField("citygmlclass", "Bridge");
-        else if (descriptiveTerm == "{\"Rail Signal Gantry\"}") outputFeature->SetField("citygmlclass", "Bridge");
-        else if (descriptiveTerm == "{Step}") outputFeature->SetField("citygmlclass", "Bridge");
+        else if (descriptiveTerm == "{Bridge}") citygmlClass = "Bridge";
+        else if (descriptiveTerm == "{Footbridge}") citygmlClass = "Bridge";
+        else if (descriptiveTerm == "{Footbridge,Step}") citygmlClass = "Bridge";
+        else if (descriptiveTerm == "{\"Rail Signal Gantry\"}") citygmlClass = "Bridge";
+        else if (descriptiveTerm == "{Step}") citygmlClass = "Bridge";
         
-        else if (descriptiveTerm == "{Slipway}") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveTerm == "{Foreshore,Slipway}") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveTerm == "{Foreshore}") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveTerm == "{Foreshore,Sand}") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveGroup == "{\"General Surface\",\"Tidal Water\"}") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveGroup == "{Landform,\"Road Or Track\"}") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveGroup == "{Structure,\"Tidal Water\"}") outputFeature->SetField("citygmlclass", "LandUse");
+        else if (descriptiveTerm == "{Slipway}") citygmlClass = "LandUse";
+        else if (descriptiveTerm == "{Foreshore,Slipway}") citygmlClass = "LandUse";
+        else if (descriptiveTerm == "{Foreshore}") citygmlClass = "LandUse";
+        else if (descriptiveTerm == "{Foreshore,Sand}") citygmlClass = "LandUse";
+        else if (descriptiveGroup == "{\"General Surface\",\"Tidal Water\"}") citygmlClass = "LandUse";
+        else if (descriptiveGroup == "{Landform,\"Road Or Track\"}") citygmlClass = "LandUse";
+        else if (descriptiveGroup == "{Structure,\"Tidal Water\"}") citygmlClass = "LandUse";
         
         // Catch other cases
-        else if (descriptiveGroup == "{Structure}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Building");
-        else if (descriptiveGroup == "{\"General Surface\",Structure}") outputFeature->SetField("citygmlclass", "Building");
+        else if (descriptiveGroup == "{Structure}" && make == "Manmade") citygmlClass = "Building";
+        else if (descriptiveGroup == "{\"General Surface\",Structure}") citygmlClass = "Building";
         
-        else if (descriptiveGroup == "{Roadside}" && make == "Manmade") outputFeature->SetField("citygmlclass", "Road"); // pavement
-        else if (descriptiveGroup == "{Path,Roadside}") outputFeature->SetField("citygmlclass", "Road"); // for pedestrians
-        else if (descriptiveGroup == "{Roadside}" && make == "Unknown") outputFeature->SetField("citygmlclass", "Road"); // pedestrian islands
-        else if (descriptiveGroup == "{Roadside,Structure}") outputFeature->SetField("citygmlclass", "Road"); // protection for pedestrian crossings
-        else if (descriptiveGroup == "{\"Road Or Track\",Structure}") outputFeature->SetField("citygmlclass", "Road");
-        else if (descriptiveGroup == "{Structure,Path}") outputFeature->SetField("citygmlclass", "Road");
+        else if (descriptiveGroup == "{Roadside}" && make == "Manmade") citygmlClass = "Road"; // pavement
+        else if (descriptiveGroup == "{Path,Roadside}") citygmlClass = "Road"; // for pedestrians
+        else if (descriptiveGroup == "{Roadside}" && make == "Unknown") citygmlClass = "Road"; // pedestrian islands
+        else if (descriptiveGroup == "{Roadside,Structure}") citygmlClass = "Road"; // protection for pedestrian crossings
+        else if (descriptiveGroup == "{\"Road Or Track\",Structure}") citygmlClass = "Road";
+        else if (descriptiveGroup == "{Structure,Path}") citygmlClass = "Road";
         
-        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Natural") outputFeature->SetField("citygmlclass", "PlantCover");
-        else if (descriptiveGroup == "{Roadside}" && make == "Natural") outputFeature->SetField("citygmlclass", "PlantCover");
+        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Natural") citygmlClass = "PlantCover";
+        else if (descriptiveGroup == "{Roadside}" && make == "Natural") citygmlClass = "PlantCover";
         
-        else if (descriptiveGroup == "{Path,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
-        else if (descriptiveGroup == "{Rail,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
-        else if (descriptiveGroup == "{\"Natural Environment\",Structure}") outputFeature->SetField("citygmlclass", "Bridge");
-        else if (descriptiveGroup == "{\"Natural Environment\",Rail,Structure}") outputFeature->SetField("citygmlclass", "Bridge");
+        else if (descriptiveGroup == "{Path,Structure}") citygmlClass = "Bridge";
+        else if (descriptiveGroup == "{Rail,Structure}") citygmlClass = "Bridge";
+        else if (descriptiveGroup == "{\"Natural Environment\",Structure}") citygmlClass = "Bridge";
+        else if (descriptiveGroup == "{\"Natural Environment\",Rail,Structure}") citygmlClass = "Bridge";
         
-        else if (descriptiveTerm == "{\"Multi Surface\"}") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveTerm == "{Slope}") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Manmade") outputFeature->SetField("citygmlclass", "LandUse");
-        else if (descriptiveGroup == "{Unclassified}") outputFeature->SetField("citygmlclass", "LandUse");
+        else if (descriptiveTerm == "{\"Multi Surface\"}") citygmlClass = "LandUse";
+        else if (descriptiveTerm == "{Slope}") citygmlClass = "LandUse";
+        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Manmade") citygmlClass = "LandUse";
+        else if (descriptiveGroup == "{Unclassified}") citygmlClass = "LandUse";
         
         // Doesn't fit yet
         else {
           unclassifiedDescriptiveGroups.insert(inputFeature->GetFieldAsString(descriptiveGroupField));
           unclassifiedDescriptiveTerms.insert(inputFeature->GetFieldAsString(descriptiveTermField));
           ++unclassifiedFeatures;
-          outputFeature->SetField("citygmlclass", "");
+          citygmlClass = "";
         }
         
-        outputFeature->SetGeometry(inputFeature->GetGeometryRef());
-        if (outputLayer->CreateFeature(outputFeature) != OGRERR_NONE) {
-          std::cerr << "Error: Could not create feature." << std::endl;
-          return 1;
-        } OGRFeature::DestroyFeature(outputFeature);
+        if (inputFeature->GetGeometryRef()->getGeometryType() == wkbPolygon) {
+          OGRFeature *outputFeature = OGRFeature::CreateFeature(outputLayer->GetLayerDefn());
+          for (int currentField = 0; currentField < inputFeature->GetFieldCount(); currentField++) {
+            outputFeature->SetField(currentField, inputFeature->GetRawFieldRef(currentField));
+          } outputFeature->SetField("citygmlclass", citygmlClass.c_str());
+          outputFeature->SetGeometry(inputFeature->GetGeometryRef());
+          if (outputLayer->CreateFeature(outputFeature) != OGRERR_NONE) {
+            std::cerr << "Error: Could not create feature." << std::endl;
+            return 1;
+          } OGRFeature::DestroyFeature(outputFeature);
+        } else if (inputFeature->GetGeometryRef()->getGeometryType() == wkbMultiPolygon) {
+          OGRMultiPolygon *inputGeometry = inputFeature->GetGeometryRef()->toMultiPolygon();
+          for (int polygon = 0; polygon < inputGeometry->getNumGeometries(); ++polygon) {
+            OGRFeature *outputFeature = OGRFeature::CreateFeature(outputLayer->GetLayerDefn());
+            for (int currentField = 0; currentField < inputFeature->GetFieldCount(); currentField++) {
+              outputFeature->SetField(currentField, inputFeature->GetRawFieldRef(currentField));
+            } outputFeature->SetField("citygmlclass", citygmlClass.c_str());
+            outputFeature->SetGeometry(inputGeometry->getGeometryRef(polygon));
+            if (outputLayer->CreateFeature(outputFeature) != OGRERR_NONE) {
+              std::cerr << "Error: Could not create feature." << std::endl;
+              return 1;
+            } OGRFeature::DestroyFeature(outputFeature);
+          }
+        }
+        
+        
+      }
+      
+      else {
+        std::cout << "Skipped feature with unknown geometry type." << std::endl;
       }
     }
     

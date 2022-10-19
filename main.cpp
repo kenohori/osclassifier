@@ -6,8 +6,8 @@
 
 int main(int argc, const char * argv[]) {
   
-  const char *inputFile = "/Users/ken/Downloads/vector_data/os_mastermap_topo_exeter_small_aoi.gpkg";
-  const char *outputFile = "/Users/ken/Downloads/3dfier_os/osmm.gpkg";
+  const char *inputFile = "os_mastermap_topo_exeter_small_aoi.gpkg";
+  const char *outputFile = "osmm.gpkg";
 
   // Prepare input file
   GDALAllRegister();

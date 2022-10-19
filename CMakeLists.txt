@@ -21,7 +21,7 @@ endif()
 find_package( GDAL 3.0 )
 
 if ( NOT GDAL_FOUND )
-  message(SEND_ERROR "prepair requires the GDAL library")
+  message(SEND_ERROR "osclassifier requires the GDAL library")
 endif()
 
 include_directories( ${GDAL_INCLUDE_DIR} )
@@ -31,7 +31,7 @@ include_directories( ${GDAL_INCLUDE_DIR} )
 
 add_executable( osclassifier main.cpp )
 
-set_property(TARGET osclassifier PROPERTY CXX_STANDARD 11)
+set_property(TARGET osclassifier PROPERTY CXX_STANDARD 17)
 
 # Link to CGAL and third-party libraries
 target_link_libraries( osclassifier ${GDAL_LIBRARY} )

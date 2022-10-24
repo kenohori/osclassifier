@@ -6,8 +6,8 @@
 
 int main(int argc, const char * argv[]) {
   
-  const char *inputFile = "os_mastermap_topo_exeter_small_aoi.gpkg";
-  const char *outputFile = "osmm.gpkg";
+  const char *inputFile = "/Users/ken/Downloads/osmm exeter/osmm open.gpkg";
+  const char *outputFile = "/Users/ken/Downloads/osmm exeter/osmm reclassified.gpkg";
 
   // Prepare input file
   GDALAllRegister();
@@ -56,8 +56,7 @@ int main(int argc, const char * argv[]) {
   
   for (auto &&inputLayer: inputDataset->GetLayers()) {
     std::cout << "Reading layer " << inputLayer->GetName() << " (" << inputLayer->GetFeatureCount(true) << " features)..." << std::endl;
-    if (strcmp(inputLayer->GetName(), "osmm_topo_topographicarea") != 0 &&
-        strcmp(inputLayer->GetName(), "output") != 0) {
+    if (strcmp(inputLayer->GetName(), "TopographicArea") != 0) {
       std::cout << "\t->skipped" << std::endl;
       continue;
     }
@@ -98,8 +97,8 @@ int main(int argc, const char * argv[]) {
       if (inputFeature->GetGeometryRef()->getGeometryType() == wkbPolygon ||
           inputFeature->GetGeometryRef()->getGeometryType() == wkbMultiPolygon) {
         
-        int descriptiveGroupField = inputFeature->GetFieldIndex("descriptivegroup");
-        int descriptiveTermField = inputFeature->GetFieldIndex("descriptiveterm");
+        int descriptiveGroupField = inputFeature->GetFieldIndex("descriptiveGroup");
+        int descriptiveTermField = inputFeature->GetFieldIndex("descriptiveTerm");
         int makeField = inputFeature->GetFieldIndex("make");
         
         std::string descriptiveGroup = inputFeature->GetFieldAsString(descriptiveGroupField);
@@ -108,79 +107,78 @@ int main(int argc, const char * argv[]) {
         std::string cityjsonClass;
         
         // Straightforward mappings
-        if (descriptiveGroup == "{Building}") cityjsonClass = "Building";
-        else if (descriptiveGroup == "{Building,Structure}") cityjsonClass = "Building";
-        else if (descriptiveGroup == "{Building,Rail}") cityjsonClass = "Building";
-        else if (descriptiveGroup == "{Building,\"Road Or Track\"}") cityjsonClass = "Building";
-        else if (descriptiveTerm == "{Weir}") cityjsonClass = "Building";
-        else if (descriptiveTerm == "{Foreshore,Weir}") cityjsonClass = "Building";
-        else if (descriptiveTerm == "{Cross}") cityjsonClass = "Building";
-        else if (descriptiveGroup == "{Glasshouse}") cityjsonClass = "Building";
+        if (descriptiveGroup == "(1:Building)") cityjsonClass = "Building";
+        else if (descriptiveGroup == "(2:Building,Structure)") cityjsonClass = "Building";
+        else if (descriptiveGroup == "(2:Building,Rail)") cityjsonClass = "Building";
+//        else if (descriptiveGroup == "{Building,\"Road Or Track\"}") cityjsonClass = "Building";
+        else if (descriptiveTerm == "(1:Weir)") cityjsonClass = "Building";
+//        else if (descriptiveTerm == "{Foreshore,Weir}") cityjsonClass = "Building";
+        else if (descriptiveTerm == "(1:Cross)") cityjsonClass = "Building";
+        else if (descriptiveGroup == "(1:Glasshouse)") cityjsonClass = "Building";
 
-        else if (descriptiveGroup == "{Rail}") cityjsonClass = "Railway";
-        else if (descriptiveTerm == "{\"Level Crossing\"}") cityjsonClass = "Railway";
+        else if (descriptiveGroup == "(1:Rail)") cityjsonClass = "Railway";
+        else if (descriptiveTerm == "(1:Level Crossing)") cityjsonClass = "Railway";
 
-        else if (descriptiveGroup == "{\"Road Or Track\"}") cityjsonClass = "Road";
-        else if (descriptiveGroup == "{\"General Surface\",\"Road Or Track\"}") cityjsonClass = "Road";
-        else if (descriptiveGroup == "{\"Road Or Track\",\"General Feature\"}") cityjsonClass = "Road";
-        else if (descriptiveGroup == "{Path}") cityjsonClass = "Road"; // for pedestrians
-        else if (descriptiveTerm == "{Track}") cityjsonClass = "Road";
-        else if (descriptiveTerm == "{Foreshore,Step}") cityjsonClass = "Road";
+        else if (descriptiveGroup == "(1:Road Or Track)") cityjsonClass = "Road";
+//        else if (descriptiveGroup == "{\"General Surface\",\"Road Or Track\"}") cityjsonClass = "Road";
+//        else if (descriptiveGroup == "{\"Road Or Track\",\"General Feature\"}") cityjsonClass = "Road";
+        else if (descriptiveGroup == "(1:Path)") cityjsonClass = "Road"; // for pedestrians
+        else if (descriptiveTerm == "(1:Track)") cityjsonClass = "Road";
+//        else if (descriptiveTerm == "{Foreshore,Step}") cityjsonClass = "Road";
 
-        else if (descriptiveGroup == "{\"Inland Water\"}") cityjsonClass = "WaterBody";
-        else if (descriptiveGroup == "{\"Inland Water\",Structure}") cityjsonClass = "WaterBody";
-        else if (descriptiveGroup == "{\"Tidal Water\"}") cityjsonClass = "WaterBody";
-        else if (descriptiveGroup == "{\"Natural Environment\",\"Tidal Water\"}") cityjsonClass = "WaterBody";
-        else if (descriptiveGroup == "{\"Inland Water\",\"Natural Environment\"}") cityjsonClass = "WaterBody";
-        else if (descriptiveGroup == "{\"Inland Water\",\"Natural Environment\"}") cityjsonClass = "WaterBody";
-        else if (descriptiveGroup == "{\"General Surface\",\"Inland Water\"}") cityjsonClass = "WaterBody";
-        else if (descriptiveGroup == "{Structure,\"Inland Water\"}") cityjsonClass = "WaterBody";
-        else if (descriptiveGroup == "{\"Inland Water\",\"Road Or Track\"}") cityjsonClass = "WaterBody";
+        else if (descriptiveGroup == "(1:Inland Water)") cityjsonClass = "WaterBody";
+        else if (descriptiveGroup == "(2:Inland Water,Structure)") cityjsonClass = "WaterBody";
+        else if (descriptiveGroup == "(1:Tidal Water)") cityjsonClass = "WaterBody";
+        else if (descriptiveGroup == "(2:Natural Environment,Tidal Water)") cityjsonClass = "WaterBody";
+        else if (descriptiveGroup == "(2:Inland Water,Natural Environment)") cityjsonClass = "WaterBody";
+//        else if (descriptiveGroup == "{\"General Surface\",\"Inland Water\"}") cityjsonClass = "WaterBody";
+//        else if (descriptiveGroup == "{Structure,\"Inland Water\"}") cityjsonClass = "WaterBody";
+        else if (descriptiveGroup == "(2:Inland Water,Road Or Track)") cityjsonClass = "WaterBody";
 
-        else if (descriptiveGroup == "{\"Natural Environment\"}") cityjsonClass = "PlantCover";
-        else if (descriptiveGroup == "{\"Natural Environment\",Rail}") cityjsonClass = "PlantCover";
-        else if (descriptiveGroup == "{\"Natural Environment\",Roadside}") cityjsonClass = "PlantCover";
-        else if (descriptiveGroup == "{Landform}") cityjsonClass = "PlantCover";
-        else if (descriptiveGroup == "{Landform,Rail}") cityjsonClass = "PlantCover";
-        else if (descriptiveGroup == "{\"Historical Interest\",Rail}") cityjsonClass = "PlantCover";
+        else if (descriptiveGroup == "(1:Natural Environment)") cityjsonClass = "PlantCover";
+        else if (descriptiveGroup == "(2:Natural Environment,Rail)") cityjsonClass = "PlantCover";
+        else if (descriptiveGroup == "(2:Natural Environment,Roadside)") cityjsonClass = "PlantCover";
+        else if (descriptiveGroup == "(1:Landform)") cityjsonClass = "PlantCover";
+        else if (descriptiveGroup == "(2:Landform,Rail)") cityjsonClass = "PlantCover";
+//        else if (descriptiveGroup == "{\"Historical Interest\",Rail}") cityjsonClass = "PlantCover";
 
-        else if (descriptiveTerm == "{Bridge}") cityjsonClass = "Bridge";
-        else if (descriptiveTerm == "{Footbridge}") cityjsonClass = "Bridge";
-        else if (descriptiveTerm == "{Footbridge,Step}") cityjsonClass = "Bridge";
-        else if (descriptiveTerm == "{\"Rail Signal Gantry\"}") cityjsonClass = "Bridge";
-        else if (descriptiveTerm == "{Step}") cityjsonClass = "Bridge";
+        else if (descriptiveTerm == "(1:Bridge)") cityjsonClass = "Bridge";
+        else if (descriptiveTerm == "(1:Footbridge)") cityjsonClass = "Bridge";
+        else if (descriptiveTerm == "(2:Footbridge,Step)") cityjsonClass = "Bridge";
+        else if (descriptiveTerm == "(1:Rail Signal Gantry)") cityjsonClass = "Bridge";
+        else if (descriptiveTerm == "(1:Step)") cityjsonClass = "Bridge";
         
-        else if (descriptiveTerm == "{Slipway}") cityjsonClass = "LandUse";
-        else if (descriptiveTerm == "{Foreshore,Slipway}") cityjsonClass = "LandUse";
-        else if (descriptiveTerm == "{Foreshore}") cityjsonClass = "LandUse";
-        else if (descriptiveTerm == "{Foreshore,Sand}") cityjsonClass = "LandUse";
-        else if (descriptiveGroup == "{\"General Surface\",\"Tidal Water\"}") cityjsonClass = "LandUse";
-        else if (descriptiveGroup == "{Landform,\"Road Or Track\"}") cityjsonClass = "LandUse";
-        else if (descriptiveGroup == "{Structure,\"Tidal Water\"}") cityjsonClass = "LandUse";
+        else if (descriptiveTerm == "(1:Slipway)") cityjsonClass = "LandUse";
+//        else if (descriptiveTerm == "{Foreshore,Slipway}") cityjsonClass = "LandUse";
+//        else if (descriptiveTerm == "{Foreshore}") cityjsonClass = "LandUse";
+//        else if (descriptiveTerm == "{Foreshore,Sand}") cityjsonClass = "LandUse";
+//        else if (descriptiveGroup == "{\"General Surface\",\"Tidal Water\"}") cityjsonClass = "LandUse";
+        else if (descriptiveGroup == "(2:Landform,Road Or Track)") cityjsonClass = "LandUse";
+//        else if (descriptiveGroup == "{Structure,\"Tidal Water\"}") cityjsonClass = "LandUse";
         
         // Catch other cases
-        else if (descriptiveGroup == "{Structure}" && make == "Manmade") cityjsonClass = "Building";
-        else if (descriptiveGroup == "{\"General Surface\",Structure}") cityjsonClass = "Building";
+        else if (descriptiveGroup == "(1:Structure)" && make == "Manmade") cityjsonClass = "Building";
+        else if (descriptiveGroup == "(2:General Surface,Structure)") cityjsonClass = "Building";
         
-        else if (descriptiveGroup == "{Roadside}" && make == "Manmade") cityjsonClass = "Road"; // pavement
-        else if (descriptiveGroup == "{Path,Roadside}") cityjsonClass = "Road"; // for pedestrians
-        else if (descriptiveGroup == "{Roadside}" && make == "Unknown") cityjsonClass = "Road"; // pedestrian islands
-        else if (descriptiveGroup == "{Roadside,Structure}") cityjsonClass = "Road"; // protection for pedestrian crossings
-        else if (descriptiveGroup == "{\"Road Or Track\",Structure}") cityjsonClass = "Road";
-        else if (descriptiveGroup == "{Structure,Path}") cityjsonClass = "Road";
+        else if (descriptiveGroup == "(1:Roadside)" && make == "Manmade") cityjsonClass = "Road"; // pavement
+        else if (descriptiveGroup == "(2:Path,Structure)") cityjsonClass = "Road"; // for pedestrians
+        else if (descriptiveGroup == "(1:Roadside)" && make == "Unknown") cityjsonClass = "Road"; // pedestrian islands
+        else if (descriptiveGroup == "(2:Roadside,Structure)") cityjsonClass = "Road"; // protection for pedestrian crossings
+        else if (descriptiveGroup == "(2:Road Or Track,Structure)") cityjsonClass = "Road";
+        else if (descriptiveGroup == "(2:Structure,Path)") cityjsonClass = "Road";
         
-        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Natural") cityjsonClass = "PlantCover";
-        else if (descriptiveGroup == "{Roadside}" && make == "Natural") cityjsonClass = "PlantCover";
+        else if (descriptiveGroup == "(1:General Surface)" && make == "Natural") cityjsonClass = "PlantCover";
+        else if (descriptiveGroup == "(1:Roadside)" && make == "Natural") cityjsonClass = "PlantCover";
         
-        else if (descriptiveGroup == "{Path,Structure}") cityjsonClass = "Bridge";
-        else if (descriptiveGroup == "{Rail,Structure}") cityjsonClass = "Bridge";
-        else if (descriptiveGroup == "{\"Natural Environment\",Structure}") cityjsonClass = "Bridge";
-        else if (descriptiveGroup == "{\"Natural Environment\",Rail,Structure}") cityjsonClass = "Bridge";
+        else if (descriptiveGroup == "(2:Path,Structure)") cityjsonClass = "Bridge";
+        else if (descriptiveGroup == "(2:Rail,Structure)") cityjsonClass = "Bridge";
+        else if (descriptiveGroup == "(2:Natural Environment,Structure)") cityjsonClass = "Bridge";
+        else if (descriptiveGroup == "(3:Natural Environment,Rail,Structure)") cityjsonClass = "Bridge";
         
-        else if (descriptiveTerm == "{\"Multi Surface\"}") cityjsonClass = "LandUse";
-        else if (descriptiveTerm == "{Slope}") cityjsonClass = "LandUse";
-        else if (descriptiveGroup == "{\"General Surface\"}" && make == "Manmade") cityjsonClass = "LandUse";
-        else if (descriptiveGroup == "{Unclassified}") cityjsonClass = "LandUse";
+        else if (descriptiveTerm == "(1:Multi Surface)") cityjsonClass = "LandUse";
+        else if (descriptiveTerm == "(1:Slope)") cityjsonClass = "LandUse";
+        else if (descriptiveGroup == "(1:General Surface)" && make == "Manmade") cityjsonClass = "LandUse";
+        else if (descriptiveGroup == "(1:Unclassified)") cityjsonClass = "LandUse";
         
         // Doesn't fit yet
         else {
